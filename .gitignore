@@ -31,3 +31,8 @@ keys/
 .cache
 *.lprof
 *.prof
+
+# Macintosh files
+.DS_STORE
+*/.DS_STORE
+
