@@ -73,6 +73,11 @@ from rl_zoo3.utils import (
 )
 
 
+# separating this out, since we check for this in other files, and want to use the exact same function for all such checks
+def is_unity(env_id: str) -> bool:
+    return "unity" in env_id.lower()
+
+
 class ExperimentManager:
     """
     Experiment manager: read the hyperparameters,
@@ -119,6 +124,7 @@ class ExperimentManager:
         config: Optional[str] = None,
         show_progress: bool = False,
         ignore_pixels_unity: bool = False,
+        base_port_unity: Optional[int] = None,
     ):
         super().__init__()
         self.algo = algo
@@ -170,7 +176,7 @@ class ExperimentManager:
         self.truncate_last_trajectory = truncate_last_trajectory
 
         self._is_atari = self.is_atari(env_id)
-        self._is_unity = self.is_unity(env_id)
+        self._is_unity = is_unity(env_id)
         # Hyperparameter optimization config
         self.optimize_hyperparameters = optimize_hyperparameters
         self.storage = storage
@@ -202,7 +208,9 @@ class ExperimentManager:
         self.log_interval = log_interval
         self.save_replay_buffer = save_replay_buffer
         self.show_progress = show_progress
+
         self.ignore_pixels_unity = ignore_pixels_unity
+        self.base_port_unity = base_port_unity
 
         self.log_path = f"{log_folder}/{self.algo}/"
         self.save_path = os.path.join(
@@ -233,7 +241,9 @@ class ExperimentManager:
         n_envs = (
             1 if self.algo == "ars" or self.optimize_hyperparameters else self.n_envs
         )
-        env = self.create_envs(n_envs, no_log=False)
+        # offset by n_eval_envs created in the create_callbacks() function right above
+        # to avoid the error of creating more than one env with the same port
+        env = self.create_envs(n_envs, start_index=self.n_eval_envs, no_log=False)
 
         self._hyperparams = self._preprocess_action_noise(
             hyperparams, saved_hyperparams, env
@@ -273,7 +283,7 @@ class ExperimentManager:
         if self.algo == "ars" and self.n_envs > 1:
             kwargs["async_eval"] = AsyncEval(
                 [
-                    lambda: self.create_envs(n_envs=1, no_log=True)
+                    lambda: self.create_envs(n_envs=1, start_index=self.n_envs + self.n_eval_envs, no_log=True)
                     for _ in range(self.n_envs)
                 ],
                 model.policy,
@@ -584,18 +594,17 @@ class ExperimentManager:
 
     @staticmethod
     def entry_point(env_id: str) -> str:
-        try:
-            return str(
-                gym.envs.registry[env_id].entry_point
-            )  # pytype: disable=module-attr
-        except KeyError:
-            return str(
-                gym26.envs.registry[env_id].entry_point
-            )  # pytype: disable=module-attr
-
-    @staticmethod
-    def is_unity(env_id: str) -> bool:
-        return "unity" in env_id.lower()
+        if is_unity(env_id):
+            return env_id
+        else:
+            try:
+                return str(
+                    gym.envs.registry[env_id].entry_point
+                )  # pytype: disable=module-attr
+            except KeyError:
+                return str(
+                    gym26.envs.registry[env_id].entry_point
+                )  # pytype: disable=module-attr
 
     @staticmethod
     def is_atari(env_id: str) -> bool:
@@ -657,7 +666,11 @@ class ExperimentManager:
         return env
 
     def create_envs(
-        self, n_envs: int, eval_env: bool = False, no_log: bool = False
+        self,
+        n_envs: int,
+        eval_env: bool = False,
+        no_log: bool = False,
+        start_index: int = 0,
     ) -> VecEnv:
         """
         Create the environment and wrap it if necessary.
@@ -666,6 +679,7 @@ class ExperimentManager:
         :param eval_env: Whether is it an environment used for evaluation or not
         :param no_log: Do not log training when doing hyperparameter optim
             (issue with writing the same file)
+        :param start_index: Start index for the rank of each environment
         :return: the vectorized environment, with appropriate wrappers
         """
         # Do not log eval env (issue with writing the same file)
@@ -687,8 +701,10 @@ class ExperimentManager:
             env = make_unity_vec_env(
                 self.env_name.gym_id,
                 ignore_pixels=self.ignore_pixels_unity,
+                base_port=self.base_port_unity,
                 n_envs=n_envs,
                 seed=self.seed,
+                start_index=start_index,  # we need this to be able to run multiple instances of the same env since different ports are required
                 env_kwargs=self.env_kwargs,
                 monitor_dir=log_dir,
                 wrapper_class=self.env_wrapper,
@@ -875,7 +891,9 @@ class ExperimentManager:
             **kwargs,
         )
 
-        eval_env = self.create_envs(n_envs=self.n_eval_envs, eval_env=True)
+        eval_env = self.create_envs(
+            n_envs=self.n_eval_envs, start_index=n_envs, eval_env=True
+        )
 
         optuna_eval_freq = int(self.n_timesteps / self.n_evaluations)
         # Account for parallel envs
@@ -901,7 +919,9 @@ class ExperimentManager:
         if self.algo == "ars" and self.n_envs > 1:
             learn_kwargs["async_eval"] = AsyncEval(
                 [
-                    lambda: self.create_envs(n_envs=1, no_log=True)
+                    lambda: self.create_envs(
+                        n_envs=1, start_index=n_envs + self.n_eval_envs, no_log=True
+                    )
                     for _ in range(self.n_envs)
                 ],
                 model.policy,

@@ -14,7 +14,7 @@ from stable_baselines3.common.utils import set_random_seed
 
 # Register custom envs
 import rl_zoo3.import_envs  # noqa: F401 pytype: disable=import-error
-from rl_zoo3.exp_manager import ExperimentManager
+from rl_zoo3.exp_manager import ExperimentManager, is_unity
 from rl_zoo3.utils import ALGOS, StoreDict
 
 
@@ -254,18 +254,24 @@ def train() -> None:
         help="if toggled, display a progress bar using tqdm and rich",
     )
     parser.add_argument(
-        "--ignore-pixels-unity",
-        action="store_true",
-        default=False,
-        help="if toggled, ignore pixels observation space in Unity Environment",
-    )
-    parser.add_argument(
         "-tags",
         "--wandb-tags",
         type=str,
         default=[],
         nargs="+",
         help="Tags for wandb run, e.g.: -tags optimized pr-123",
+    )
+    parser.add_argument(
+        "--ignore-pixels-unity",
+        action="store_true",
+        default=False,
+        help="if toggled, ignore pixels observation space in Unity Environment",
+    )
+    parser.add_argument(
+        "--base-port-unity",
+        default=None,
+        type=int,
+        help="Base port to use for Unity Environment",
     )
 
     args = parser.parse_args()
@@ -278,6 +284,9 @@ def train() -> None:
     registered_envs = set(gym.envs.registry.keys())  # pytype: disable=module-attr
     # Add gym 0.26 envs
     registered_envs.update(gym26.envs.registry.keys())  # pytype: disable=module-attr
+    # automatically add custom unity environments to registered envs
+    if is_unity(env_id):
+        registered_envs.add(env_id)
 
     # If the environment is not found, suggest the closest match
     if env_id not in registered_envs:
@@ -370,6 +379,7 @@ def train() -> None:
         config=args.conf_file,
         show_progress=args.progress,
         ignore_pixels_unity=args.ignore_pixels_unity,
+        base_port_unity=args.base_port_unity,
     )
 
     # Prepare experiment and launch hyperparameter optimization if needed
