@@ -283,7 +283,11 @@ class ExperimentManager:
         if self.algo == "ars" and self.n_envs > 1:
             kwargs["async_eval"] = AsyncEval(
                 [
-                    lambda: self.create_envs(n_envs=1, start_index=self.n_envs + self.n_eval_envs, no_log=True)
+                    lambda: self.create_envs(
+                        n_envs=1,
+                        start_index=self.n_envs + self.n_eval_envs,
+                        no_log=True,
+                    )
                     for _ in range(self.n_envs)
                 ],
                 model.policy,
@@ -871,7 +875,11 @@ class ExperimentManager:
         kwargs.update(sampled_hyperparams)
 
         n_envs = 1 if self.algo == "ars" else self.n_envs
-        env = self.create_envs(n_envs, no_log=True)
+        # offsetting start index by n_eval_envs to avoid the error of creating more than one env with the same port
+        # due to create_callbacks() creating an eval env
+        env = self.create_envs(
+            n_envs, start_index=trial.number + self.n_eval_envs, no_log=True
+        )
 
         # By default, do not activate verbose output to keep
         # stdout clean with only the trials results
@@ -892,7 +900,9 @@ class ExperimentManager:
         )
 
         eval_env = self.create_envs(
-            n_envs=self.n_eval_envs, start_index=n_envs, eval_env=True
+            n_envs=self.n_eval_envs,
+            start_index=trial.number + self.n_eval_envs + n_envs,
+            eval_env=True,
         )
 
         optuna_eval_freq = int(self.n_timesteps / self.n_evaluations)
@@ -920,7 +930,9 @@ class ExperimentManager:
             learn_kwargs["async_eval"] = AsyncEval(
                 [
                     lambda: self.create_envs(
-                        n_envs=1, start_index=n_envs + self.n_eval_envs, no_log=True
+                        n_envs=1,
+                        start_index=2 * (trial.number + n_envs + self.n_eval_envs),
+                        no_log=True,
                     )
                     for _ in range(self.n_envs)
                 ],
