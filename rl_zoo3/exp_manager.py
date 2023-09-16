@@ -879,7 +879,7 @@ class ExperimentManager:
         # due to create_callbacks() creating an eval env. Port has a max value of 65535.
         env = self.create_envs(
             n_envs,
-            start_index=(trial.number + self.n_eval_envs) % 65535,
+            start_index=(trial.number + self.n_eval_envs) % 65536,
             no_log=True,
         )
 
@@ -906,7 +906,7 @@ class ExperimentManager:
             start_index=(
                 trial.number + self.n_eval_envs + n_envs
             )
-            % 65535,
+            % 65536,
             eval_env=True,
         )
 
@@ -944,7 +944,7 @@ class ExperimentManager:
                                 + self.n_eval_envs
                             )
                         )
-                        % 65535,
+                        % 65536,
                         no_log=True,
                     )
                     for _ in range(self.n_envs)
