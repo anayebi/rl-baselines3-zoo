@@ -876,9 +876,11 @@ class ExperimentManager:
 
         n_envs = 1 if self.algo == "ars" else self.n_envs
         # offsetting start index by n_eval_envs to avoid the error of creating more than one env with the same port
-        # due to create_callbacks() creating an eval env
+        # due to create_callbacks() creating an eval env. Port has a max value of 65535.
         env = self.create_envs(
-            n_envs, start_index=trial.number + self.n_eval_envs, no_log=True
+            n_envs,
+            start_index=(trial.number + self.n_eval_envs) % 65535,
+            no_log=True,
         )
 
         # By default, do not activate verbose output to keep
@@ -901,7 +903,10 @@ class ExperimentManager:
 
         eval_env = self.create_envs(
             n_envs=self.n_eval_envs,
-            start_index=trial.number + self.n_eval_envs + n_envs,
+            start_index=(
+                trial.number + self.n_eval_envs + n_envs
+            )
+            % 65535,
             eval_env=True,
         )
 
@@ -931,7 +936,15 @@ class ExperimentManager:
                 [
                     lambda: self.create_envs(
                         n_envs=1,
-                        start_index=2 * (trial.number + n_envs + self.n_eval_envs),
+                        start_index=(
+                            2
+                            * (
+                                trial.number
+                                + n_envs
+                                + self.n_eval_envs
+                            )
+                        )
+                        % 65535,
                         no_log=True,
                     )
                     for _ in range(self.n_envs)
