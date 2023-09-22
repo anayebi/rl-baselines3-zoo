@@ -9,25 +9,65 @@ from stable_baselines3.common.utils import set_random_seed
 from stable_baselines3.common.vec_env import VecVideoRecorder
 
 from rl_zoo3.exp_manager import ExperimentManager
-from rl_zoo3.utils import ALGOS, StoreDict, create_test_env, get_model_path, get_saved_hyperparams
+from rl_zoo3.utils import (
+    ALGOS,
+    StoreDict,
+    create_test_env,
+    get_model_path,
+    get_saved_hyperparams,
+)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--env", help="Environment ID", type=EnvironmentName, default="CartPole-v1")
-    parser.add_argument("-f", "--folder", help="Log folder", type=str, default="rl-trained-agents")
+    parser.add_argument(
+        "--env", help="Environment ID", type=EnvironmentName, default="CartPole-v1"
+    )
+    parser.add_argument(
+        "-f", "--folder", help="Log folder", type=str, default="rl-trained-agents"
+    )
     parser.add_argument("-o", "--output-folder", help="Output folder", type=str)
-    parser.add_argument("--algo", help="RL Algorithm", default="ppo", type=str, required=False, choices=list(ALGOS.keys()))
-    parser.add_argument("-n", "--n-timesteps", help="Number of timesteps", default=1000, type=int)
+    parser.add_argument(
+        "--algo",
+        help="RL Algorithm",
+        default="ppo",
+        type=str,
+        required=False,
+        choices=list(ALGOS.keys()),
+    )
+    parser.add_argument(
+        "-n", "--n-timesteps", help="Number of timesteps", default=1000, type=int
+    )
     parser.add_argument("--n-envs", help="Number of environments", default=1, type=int)
-    parser.add_argument("--deterministic", action="store_true", default=False, help="Use deterministic actions")
-    parser.add_argument("--stochastic", action="store_true", default=False, help="Use stochastic actions")
+    parser.add_argument(
+        "--deterministic",
+        action="store_true",
+        default=False,
+        help="Use deterministic actions",
+    )
+    parser.add_argument(
+        "--stochastic",
+        action="store_true",
+        default=False,
+        help="Use stochastic actions",
+    )
     parser.add_argument("--seed", help="Random generator seed", type=int, default=0)
     parser.add_argument(
-        "--no-render", action="store_true", default=False, help="Do not render the environment (useful for tests)"
+        "--no-render",
+        action="store_true",
+        default=False,
+        help="Do not render the environment (useful for tests)",
     )
-    parser.add_argument("--exp-id", help="Experiment ID (default: 0: latest, -1: no exp folder)", default=0, type=int)
     parser.add_argument(
-        "--load-best", action="store_true", default=False, help="Load best model instead of last model if available"
+        "--exp-id",
+        help="Experiment ID (default: 0: latest, -1: no exp folder)",
+        default=0,
+        type=int,
+    )
+    parser.add_argument(
+        "--load-best",
+        action="store_true",
+        default=False,
+        help="Load best model instead of last model if available",
     )
     parser.add_argument(
         "--load-checkpoint",
@@ -41,12 +81,36 @@ if __name__ == "__main__":
         help="Load last checkpoint instead of last model if available",
     )
     parser.add_argument(
-        "--env-kwargs", type=str, nargs="+", action=StoreDict, help="Optional keyword argument to pass to the env constructor"
+        "--env-kwargs",
+        type=str,
+        nargs="+",
+        action=StoreDict,
+        help="Optional keyword argument to pass to the env constructor",
     )
     parser.add_argument(
-        "--custom-objects", action="store_true", default=False, help="Use custom objects to solve loading issues"
+        "--custom-objects",
+        action="store_true",
+        default=False,
+        help="Use custom objects to solve loading issues",
     )
-
+    parser.add_argument(
+        "--ignore-pixels-unity",
+        action="store_true",
+        default=False,
+        help="if toggled, ignore pixels observation space in Unity Environment",
+    )
+    parser.add_argument(
+        "--base-port-unity",
+        default=None,
+        type=int,
+        help="Base port to use for Unity Environment",
+    )
+    parser.add_argument(
+        "--start-index",
+        default=0,
+        type=int,
+        help="Start index to offset base port in Unity Environment",
+    )
     args = parser.parse_args()
 
     env_name: EnvironmentName = args.env
@@ -83,7 +147,9 @@ if __name__ == "__main__":
     args_path = os.path.join(log_path, env_name, "args.yml")
     if os.path.isfile(args_path):
         with open(args_path) as f:
-            loaded_args = yaml.load(f, Loader=yaml.UnsafeLoader)  # pytype: disable=module-attr
+            loaded_args = yaml.load(
+                f, Loader=yaml.UnsafeLoader
+            )  # pytype: disable=module-attr
             if loaded_args["env_kwargs"] is not None:
                 env_kwargs = loaded_args["env_kwargs"]
     # overwrite with command line arguments
@@ -102,6 +168,9 @@ if __name__ == "__main__":
         should_render=not args.no_render,
         hyperparams=hyperparams,
         env_kwargs=env_kwargs,
+        ignore_pixels_unity=args.ignore_pixels_unity,
+        base_port_unity=args.base_port_unity,
+        start_index=args.start_index,
     )
 
     kwargs = dict(seed=args.seed)
@@ -128,7 +197,9 @@ if __name__ == "__main__":
 
     print(f"Loading {model_path}")
 
-    model = ALGOS[algo].load(model_path, env=env, custom_objects=custom_objects, **kwargs)
+    model = ALGOS[algo].load(
+        model_path, env=env, custom_objects=custom_objects, **kwargs
+    )
 
     # Deterministic by default except for atari games
     stochastic = args.stochastic or (is_atari or is_minigrid) and not args.deterministic

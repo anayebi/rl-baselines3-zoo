@@ -18,8 +18,16 @@ from stable_baselines3 import A2C, DDPG, DQN, PPO, SAC, TD3
 from stable_baselines3.common.base_class import BaseAlgorithm
 from stable_baselines3.common.callbacks import BaseCallback
 from stable_baselines3.common.env_util import make_vec_env
-from stable_baselines3.common.sb2_compat.rmsprop_tf_like import RMSpropTFLike  # noqa: F401
-from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv, VecEnv, VecFrameStack, VecNormalize
+from stable_baselines3.common.sb2_compat.rmsprop_tf_like import (
+    RMSpropTFLike,
+)  # noqa: F401
+from stable_baselines3.common.vec_env import (
+    DummyVecEnv,
+    SubprocVecEnv,
+    VecEnv,
+    VecFrameStack,
+    VecNormalize,
+)
 
 # For custom activation fn
 from torch import nn as nn
@@ -45,7 +53,9 @@ def flatten_dict_observations(env: gym.Env) -> gym.Env:
     return gym.wrappers.FlattenObservation(env)
 
 
-def get_wrapper_class(hyperparams: Dict[str, Any], key: str = "env_wrapper") -> Optional[Callable[[gym.Env], gym.Env]]:
+def get_wrapper_class(
+    hyperparams: Dict[str, Any], key: str = "env_wrapper"
+) -> Optional[Callable[[gym.Env], gym.Env]]:
     """
     Get one or more Gym environment wrapper class specified as a hyper parameter
     "env_wrapper".
@@ -198,6 +208,9 @@ def create_test_env(
     should_render: bool = True,
     hyperparams: Optional[Dict[str, Any]] = None,
     env_kwargs: Optional[Dict[str, Any]] = None,
+    ignore_pixels_unity: bool = False,
+    base_port_unity: Optional[int] = None,
+    start_index: int = 0,
 ) -> VecEnv:
     """
     Create environment for testing a trained agent
@@ -210,10 +223,13 @@ def create_test_env(
     :param should_render: For Pybullet env, display the GUI
     :param hyperparams: Additional hyperparams (ex: n_stack)
     :param env_kwargs: Optional keyword argument to pass to the env constructor
+    :param ignore_pixels_unity: if toggled, ignore pixels observation space in Unity Environment
+    :param base_port_unity: Base port to use for Unity Environment
+    :param start_index: Start index for the rank of each environment
     :return:
     """
     # Avoid circular import
-    from rl_zoo3.exp_manager import ExperimentManager
+    from rl_zoo3.exp_manager import ExperimentManager, is_unity
 
     # Create the environment and wrap it if necessary
     assert hyperparams is not None
@@ -238,34 +254,51 @@ def create_test_env(
     if "render_mode" not in env_kwargs and should_render:
         env_kwargs.update(render_mode="human")
 
-    # Make Pybullet compatible with gym 0.26
-    if ExperimentManager.is_bullet(env_id):
-        spec = gym26.spec(env_id)
-        env_kwargs.update(dict(apply_api_compatibility=True))
+    if is_unity(env_id):
+        from zfa.model_training.env_utils import make_unity_vec_env
+
+        env = make_unity_vec_env(
+            env_id,
+            ignore_pixels=ignore_pixels_unity,
+            base_port=base_port_unity,
+            n_envs=n_envs,
+            seed=seed,
+            start_index=start_index,  # we need this to be able to run multiple instances of the same env since different ports are required
+            env_kwargs=env_kwargs,
+            monitor_dir=log_dir,
+            wrapper_class=env_wrapper,
+            vec_env_cls=vec_env_cls,
+            vec_env_kwargs=vec_env_kwargs,
+        )
     else:
-        # Define make_env here so it works with subprocesses
-        # when the registry was modified with `--gym-packages`
-        # See https://github.com/HumanCompatibleAI/imitation/pull/160
-        try:
-            spec = gym.spec(env_id)  # type: ignore[assignment]
-        except gym.error.NameNotFound:
-            # Registered with gym 0.26
+        # Make Pybullet compatible with gym 0.26
+        if ExperimentManager.is_bullet(env_id):
             spec = gym26.spec(env_id)
+            env_kwargs.update(dict(apply_api_compatibility=True))
+        else:
+            # Define make_env here so it works with subprocesses
+            # when the registry was modified with `--gym-packages`
+            # See https://github.com/HumanCompatibleAI/imitation/pull/160
+            try:
+                spec = gym.spec(env_id)  # type: ignore[assignment]
+            except gym.error.NameNotFound:
+                # Registered with gym 0.26
+                spec = gym26.spec(env_id)
 
-    def make_env(**kwargs) -> gym.Env:
-        env = spec.make(**kwargs)
-        return env  # type: ignore[return-value]
+        def make_env(**kwargs) -> gym.Env:
+            env = spec.make(**kwargs)
+            return env  # type: ignore[return-value]
 
-    env = make_vec_env(
-        make_env,
-        n_envs=n_envs,
-        monitor_dir=log_dir,
-        seed=seed,
-        wrapper_class=env_wrapper,
-        env_kwargs=env_kwargs,
-        vec_env_cls=vec_env_cls,
-        vec_env_kwargs=vec_env_kwargs,
-    )
+        env = make_vec_env(
+            make_env,
+            n_envs=n_envs,
+            monitor_dir=log_dir,
+            seed=seed,
+            wrapper_class=env_wrapper,
+            env_kwargs=env_kwargs,
+            vec_env_cls=vec_env_cls,
+            vec_env_kwargs=vec_env_kwargs,
+        )
 
     if "vec_env_wrapper" in hyperparams.keys():
         vec_env_wrapper = get_wrapper_class(hyperparams, "vec_env_wrapper")
@@ -326,7 +359,9 @@ def get_trained_models(log_folder: str) -> Dict[str, Tuple[str, str]]:
         if not os.path.isdir(os.path.join(log_folder, algo)):
             continue
         for model_folder in os.listdir(os.path.join(log_folder, algo)):
-            args_files = glob.glob(os.path.join(log_folder, algo, model_folder, "*/args.yml"))
+            args_files = glob.glob(
+                os.path.join(log_folder, algo, model_folder, "*/args.yml")
+            )
             if len(args_files) != 1:
                 continue  # we expect only one sub-folder with an args.yml file
             with open(args_files[0]) as fh:
@@ -337,7 +372,9 @@ def get_trained_models(log_folder: str) -> Dict[str, Tuple[str, str]]:
     return trained_models
 
 
-def get_hf_trained_models(organization: str = "sb3", check_filename: bool = False) -> Dict[str, Tuple[str, str]]:
+def get_hf_trained_models(
+    organization: str = "sb3", check_filename: bool = False
+) -> Dict[str, Tuple[str, str]]:
     """
     Get pretrained models,
     available on the Hugginface hub for a given organization.
@@ -369,7 +406,10 @@ def get_hf_trained_models(organization: str = "sb3", check_filename: bool = Fals
         model_name = ModelName(algo, env_name)
 
         # check if there is a model file in the repo
-        if check_filename and not any(f.rfilename == model_name.filename for f in api.model_info(model.modelId).siblings):
+        if check_filename and not any(
+            f.rfilename == model_name.filename
+            for f in api.model_info(model.modelId).siblings
+        ):
             continue  # skip model if the repo contains no properly named model file
 
         trained_models[model_name] = (algo, env_id)
@@ -390,7 +430,11 @@ def get_latest_run_id(log_path: str, env_name: EnvironmentName) -> int:
     for path in glob.glob(os.path.join(log_path, env_name + "_[0-9]*")):
         run_id = path.split("_")[-1]
         path_without_run_id = path[: -len(run_id) - 1]
-        if path_without_run_id.endswith(env_name) and run_id.isdigit() and int(run_id) > max_run_id:
+        if (
+            path_without_run_id.endswith(env_name)
+            and run_id.isdigit()
+            and int(run_id) > max_run_id
+        ):
             max_run_id = int(run_id)
     return max_run_id
 
@@ -417,7 +461,9 @@ def get_saved_hyperparams(
         if os.path.isfile(config_file):
             # Load saved hyperparameters
             with open(os.path.join(stats_path, "config.yml")) as f:
-                hyperparams = yaml.load(f, Loader=yaml.UnsafeLoader)  # pytype: disable=module-attr
+                hyperparams = yaml.load(
+                    f, Loader=yaml.UnsafeLoader
+                )  # pytype: disable=module-attr
             hyperparams["normalize"] = hyperparams.get("normalize", False)
         else:
             obs_rms_path = os.path.join(stats_path, "obs_rms.pkl")
@@ -430,7 +476,10 @@ def get_saved_hyperparams(
                 if test_mode:
                     normalize_kwargs["norm_reward"] = norm_reward
             else:
-                normalize_kwargs = {"norm_obs": hyperparams["normalize"], "norm_reward": norm_reward}
+                normalize_kwargs = {
+                    "norm_obs": hyperparams["normalize"],
+                    "norm_reward": norm_reward,
+                }
             hyperparams["normalize_kwargs"] = normalize_kwargs
     return hyperparams, stats_path
 
@@ -488,7 +537,9 @@ def get_model_path(
     elif load_last_checkpoint:
         checkpoints = glob.glob(os.path.join(log_path, "rl_model_*_steps.zip"))
         if len(checkpoints) == 0:
-            raise ValueError(f"No checkpoint found for {algo} on {env_name}, path: {log_path}")
+            raise ValueError(
+                f"No checkpoint found for {algo} on {env_name}, path: {log_path}"
+            )
 
         def step_count(checkpoint_path: str) -> int:
             # path follow the pattern "rl_model_*_steps.zip", we count from the back to ignore any other _ in the path
