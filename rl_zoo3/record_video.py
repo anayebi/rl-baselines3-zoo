@@ -113,6 +113,8 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
+    os.environ["MUJOCO_GL"] = "egl"
+
     env_name: EnvironmentName = args.env
     algo = args.algo
     folder = args.folder
