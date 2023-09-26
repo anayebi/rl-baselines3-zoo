@@ -15,6 +15,7 @@ from rl_zoo3.utils import (
     create_test_env,
     get_model_path,
     get_saved_hyperparams,
+    is_mac,
 )
 
 if __name__ == "__main__":
@@ -113,7 +114,11 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    os.environ["MUJOCO_GL"] = "egl"
+    if is_mac():
+        # for mac, since it uses Metal, so glfw is native rather than egl
+        os.environ["MUJOCO_GL"] = "glfw"
+    else:
+        os.environ["MUJOCO_GL"] = "egl"
 
     env_name: EnvironmentName = args.env
     algo = args.algo

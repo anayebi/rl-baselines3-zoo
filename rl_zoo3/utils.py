@@ -48,6 +48,13 @@ ALGOS: Dict[str, Type[BaseAlgorithm]] = {
 }
 
 
+def is_mac() -> bool:
+    import platform
+
+    os_name = platform.system()
+    return os_name == "Darwin"
+
+
 def flatten_dict_observations(env: gym.Env) -> gym.Env:
     assert isinstance(env.observation_space, spaces.Dict)
     return gym.wrappers.FlattenObservation(env)
@@ -269,6 +276,7 @@ def create_test_env(
             wrapper_class=env_wrapper,
             vec_env_cls=vec_env_cls,
             vec_env_kwargs=vec_env_kwargs,
+            uint8_visual=True,  # for moviepy to save it, needs to be 0 to 255, otherwise floats will render black (close to 0)
         )
     else:
         # Make Pybullet compatible with gym 0.26
