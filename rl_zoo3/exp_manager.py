@@ -700,7 +700,7 @@ class ExperimentManager:
 
         # Unity environments have seed and rank passed to the wrapper directly, so slightly different logic here
         if self._is_unity:
-            from zfa.model_training.env_utils import make_unity_vec_env
+            from rl_zoo3.unity_env_utils import make_unity_vec_env
 
             env = make_unity_vec_env(
                 self.env_name.gym_id,
