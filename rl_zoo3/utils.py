@@ -262,7 +262,7 @@ def create_test_env(
         env_kwargs.update(render_mode="human")
 
     if is_unity(env_id):
-        from zfa.model_training.env_utils import make_unity_vec_env
+        from rl_zoo3.unity_env_utils import make_unity_vec_env
 
         env = make_unity_vec_env(
             env_id,

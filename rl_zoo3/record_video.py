@@ -8,7 +8,7 @@ from huggingface_sb3 import EnvironmentName
 from stable_baselines3.common.utils import set_random_seed
 from stable_baselines3.common.vec_env import VecVideoRecorder
 
-from rl_zoo3.exp_manager import ExperimentManager
+from rl_zoo3.exp_manager import ExperimentManager, is_unity
 from rl_zoo3.utils import (
     ALGOS,
     StoreDict,
@@ -114,11 +114,12 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    if is_mac():
-        # for mac, since it uses Metal, so glfw is native rather than egl
-        os.environ["MUJOCO_GL"] = "glfw"
-    else:
-        os.environ["MUJOCO_GL"] = "egl"
+    if is_unity(args.env):
+        if is_mac():
+            # for mac, since it uses Metal, so glfw is native rather than egl
+            os.environ["MUJOCO_GL"] = "glfw"
+        else:
+            os.environ["MUJOCO_GL"] = "egl"
 
     env_name: EnvironmentName = args.env
     algo = args.algo
