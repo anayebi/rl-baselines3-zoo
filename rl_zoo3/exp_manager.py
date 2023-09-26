@@ -71,6 +71,7 @@ from rl_zoo3.utils import (
     get_wrapper_class,
     linear_schedule,
 )
+from rl_zoo3.unity_env_utils import make_unity_vec_env
 
 
 # separating this out, since we check for this in other files, and want to use the exact same function for all such checks
@@ -700,8 +701,6 @@ class ExperimentManager:
 
         # Unity environments have seed and rank passed to the wrapper directly, so slightly different logic here
         if self._is_unity:
-            from rl_zoo3.unity_env_utils import make_unity_vec_env
-
             env = make_unity_vec_env(
                 self.env_name.gym_id,
                 ignore_pixels=self.ignore_pixels_unity,
