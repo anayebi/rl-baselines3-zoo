@@ -19,6 +19,8 @@ from mlagents_envs import logging_util
 
 from rl_zoo3.utils import is_mac
 
+from filelock import FileLock
+
 
 def get_unity_path_from_id(env_id: str) -> str:
     # todo: remove the dependence on zfa in the future
@@ -38,6 +40,18 @@ def get_unity_path_from_id(env_id: str) -> str:
             return os.path.join(UNITY_BUILDS_DIR, f"{env_id}/swimmer3.x86_64")
     else:
         raise ValueError(f"Unknown environment ID: {env_id}")
+
+
+def get_worker_id(filename="worker_id.dat"):
+    lock_filename = filename + ".lock"
+    with FileLock(lock_filename):
+        with open(filename, "a+") as f:
+            f.seek(0)
+            val = int(f.read() or 0) + 1
+            f.seek(0)
+            f.truncate()
+            f.write(str(val))
+            return val
 
 
 def make_unity_vec_env(
@@ -95,7 +109,8 @@ def make_unity_vec_env(
             used_seed = seed + rank if seed is not None else None
             env = UnityEnvironment(
                 file_name=get_unity_path_from_id(env_id),
-                worker_id=rank,
+                # worker_id=rank,
+                worker_id=get_worker_id(),
                 seed=used_seed,
                 base_port=base_port,
             )

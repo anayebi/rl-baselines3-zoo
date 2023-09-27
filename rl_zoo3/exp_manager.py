@@ -902,10 +902,7 @@ class ExperimentManager:
 
         eval_env = self.create_envs(
             n_envs=self.n_eval_envs,
-            start_index=(
-                trial.number + self.n_eval_envs + n_envs
-            )
-            % 65536,
+            start_index=(trial.number + self.n_eval_envs + n_envs) % 65536,
             eval_env=True,
         )
 
@@ -935,14 +932,7 @@ class ExperimentManager:
                 [
                     lambda: self.create_envs(
                         n_envs=1,
-                        start_index=(
-                            2
-                            * (
-                                trial.number
-                                + n_envs
-                                + self.n_eval_envs
-                            )
-                        )
+                        start_index=(2 * (trial.number + n_envs + self.n_eval_envs))
                         % 65536,
                         no_log=True,
                     )
@@ -981,6 +971,10 @@ class ExperimentManager:
     def hyperparameters_optimization(self) -> None:
         if self.verbose > 0:
             print("Optimizing hyperparameters")
+
+        if os.path.exists("worker_id.dat"):
+            os.remove("worker_id.dat")
+            print("Existing worker_id.dat has been deleted to create new one.")
 
         if self.storage is not None and self.study_name is None:
             warnings.warn(
@@ -1081,3 +1075,7 @@ class ExperimentManager:
             fig2.show()
         except (ValueError, ImportError, RuntimeError):
             pass
+
+        if os.path.exists("worker_id.dat"):
+            os.remove("worker_id.dat")
+            print("Completed worker_id.dat has been deleted.")
