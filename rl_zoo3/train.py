@@ -15,7 +15,7 @@ from stable_baselines3.common.utils import set_random_seed
 # Register custom envs
 import rl_zoo3.import_envs  # noqa: F401 pytype: disable=import-error
 from rl_zoo3.exp_manager import ExperimentManager, is_unity
-from rl_zoo3.utils import ALGOS, StoreDict
+from rl_zoo3.utils import ALGOS, StoreDict, is_mac
 
 
 def train() -> None:
@@ -287,6 +287,11 @@ def train() -> None:
     # automatically add custom unity environments to registered envs
     if is_unity(env_id):
         registered_envs.add(env_id)
+        if is_mac():
+            # for mac, since it uses Metal, so glfw is native rather than egl
+            os.environ["MUJOCO_GL"] = "glfw"
+        else:
+            os.environ["MUJOCO_GL"] = "egl"
 
     # If the environment is not found, suggest the closest match
     if env_id not in registered_envs:
