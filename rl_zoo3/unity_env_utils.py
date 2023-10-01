@@ -33,9 +33,7 @@ def get_unity_path_from_id(env_id: str) -> str:
     """
     if "unity" in env_id:
         if is_mac():
-            return os.path.expanduser(
-                "~/Zebrafish/topdown_zoomin_swimmer3_zebrafish_build_macosx.app"
-            )
+            return os.path.expanduser("~/Zebrafish/topdown_zoomin_swimmer3_zebrafish_build_macosx.app")
         else:
             return os.path.join(UNITY_BUILDS_DIR, f"{env_id}/swimmer3.x86_64")
     else:
@@ -106,18 +104,19 @@ def make_unity_vec_env(
 
     def make_env(rank):
         def _init():
+            # ignoring rank argument, and use worker_id instead to ensure more unique seeds
+            # as before setting the seed manually during multi-threaded hyperparameter search
+            # wasn't enough to avoid uniqueness conflicts with the start_index seeding strategy
+            rank = get_worker_id()
             used_seed = seed + rank if seed is not None else None
             env = UnityEnvironment(
                 file_name=get_unity_path_from_id(env_id),
-                # worker_id=rank,
-                worker_id=get_worker_id(),
+                worker_id=rank,
                 seed=used_seed,
                 base_port=base_port,
             )
             if ignore_pixels:
-                env = UnityToGymWrapperIgnorePixels(
-                    env, allow_multiple_obs=True, **env_kwargs
-                )
+                env = UnityToGymWrapperIgnorePixels(env, allow_multiple_obs=True, **env_kwargs)
             else:
                 env = UnityToGymWrapper(env, allow_multiple_obs=True, **env_kwargs)
             if seed is not None:
@@ -125,11 +124,7 @@ def make_unity_vec_env(
                 env.action_space.seed(used_seed)
             # Wrap the env in a Monitor wrapper
             # to have additional training information
-            monitor_path = (
-                os.path.join(monitor_dir, str(rank))
-                if monitor_dir is not None
-                else None
-            )
+            monitor_path = os.path.join(monitor_dir, str(rank)) if monitor_dir is not None else None
             # Create the monitor folder if needed
             if monitor_path is not None:
                 os.makedirs(monitor_dir, exist_ok=True)
@@ -146,9 +141,7 @@ def make_unity_vec_env(
         # Default: use a DummyVecEnv
         vec_env_cls = DummyVecEnv
 
-    return vec_env_cls(
-        [make_env(i + start_index) for i in range(n_envs)], **vec_env_kwargs
-    )
+    return vec_env_cls([make_env(i + start_index) for i in range(n_envs)], **vec_env_kwargs)
 
 
 class UnityGymException(error.Error):
@@ -210,18 +203,13 @@ class UnityToGymWrapper(gym.Env):
 
         # Check brain configuration
         if len(self._env.behavior_specs) != 1:
-            raise UnityGymException(
-                "There can only be one behavior in a UnityEnvironment "
-                "if it is wrapped in a gym."
-            )
+            raise UnityGymException("There can only be one behavior in a UnityEnvironment " "if it is wrapped in a gym.")
 
         self.name = list(self._env.behavior_specs.keys())[0]
         self.group_spec = self._env.behavior_specs[self.name]
 
         if self._get_n_vis_obs() == 0 and self._get_vec_obs_size() == 0:
-            raise UnityGymException(
-                "There are no observations provided by the environment."
-            )
+            raise UnityGymException("There are no observations provided by the environment.")
 
         if not self._get_n_vis_obs() >= 1 and uint8_visual:
             logger.warning(
@@ -230,10 +218,7 @@ class UnityToGymWrapper(gym.Env):
             )
         else:
             self.uint8_visual = uint8_visual
-        if (
-            self._get_n_vis_obs() + self._get_vec_obs_size() >= 2
-            and not self._allow_multiple_obs
-        ):
+        if self._get_n_vis_obs() + self._get_vec_obs_size() >= 2 and not self._allow_multiple_obs:
             logger.warning(
                 "The environment contains multiple observations. "
                 "You must define allow_multiple_obs=True to receive them all. "
@@ -262,18 +247,14 @@ class UnityToGymWrapper(gym.Env):
 
         elif self.group_spec.action_spec.is_continuous():
             if flatten_branched:
-                logger.warning(
-                    "The environment has a non-discrete action space. It will "
-                    "not be flattened."
-                )
+                logger.warning("The environment has a non-discrete action space. It will " "not be flattened.")
 
             self.action_size = self.group_spec.action_spec.continuous_size
             high = np.array([1] * self.group_spec.action_spec.continuous_size)
             self._action_space = spaces.Box(-high, high, dtype=np.float32)
         else:
             raise UnityGymException(
-                "The gym wrapper does not provide explicit support for both discrete "
-                "and continuous actions."
+                "The gym wrapper does not provide explicit support for both discrete " "and continuous actions."
             )
 
         if action_space_seed is not None:
@@ -396,18 +377,14 @@ class UnityToGymWrapper(gym.Env):
                 result.append(obs_spec.shape)
         return result
 
-    def _get_vis_obs_list(
-        self, step_result: Union[DecisionSteps, TerminalSteps]
-    ) -> List[np.ndarray]:
+    def _get_vis_obs_list(self, step_result: Union[DecisionSteps, TerminalSteps]) -> List[np.ndarray]:
         result: List[np.ndarray] = []
         for obs in step_result.obs:
             if len(obs.shape) == 4:
                 result.append(obs)
         return result
 
-    def _get_vector_obs(
-        self, step_result: Union[DecisionSteps, TerminalSteps]
-    ) -> np.ndarray:
+    def _get_vector_obs(self, step_result: Union[DecisionSteps, TerminalSteps]) -> np.ndarray:
         result: List[np.ndarray] = []
         for obs in step_result.obs:
             if len(obs.shape) == 2:
@@ -426,9 +403,7 @@ class UnityToGymWrapper(gym.Env):
         Return the latest visual observations.
         Note that it will not render a new frame of the environment.
         """
-        assert (
-            self.render_mode == mode
-        ), "Ensures consistency to not change the render mode at runtime"
+        assert self.render_mode == mode, "Ensures consistency to not change the render mode at runtime"
         return self.visual_obs
 
     def close(self) -> None:
@@ -451,9 +426,7 @@ class UnityToGymWrapper(gym.Env):
     @staticmethod
     def _check_agents(n_agents: int) -> None:
         if n_agents > 1:
-            raise UnityGymException(
-                f"There can only be one Agent in the environment but {n_agents} were detected."
-            )
+            raise UnityGymException(f"There can only be one Agent in the environment but {n_agents} were detected.")
 
     @property
     def metadata(self):
@@ -497,9 +470,7 @@ class ActionFlattener:
         possible_vals = [range(_num) for _num in branched_action_space]
         all_actions = [list(_action) for _action in itertools.product(*possible_vals)]
         # Dict should be faster than List for large action spaces
-        action_lookup = {
-            _scalar: _action for (_scalar, _action) in enumerate(all_actions)
-        }
+        action_lookup = {_scalar: _action for (_scalar, _action) in enumerate(all_actions)}
         return action_lookup
 
     def lookup_action(self, action):
