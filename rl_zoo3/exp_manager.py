@@ -219,6 +219,7 @@ class ExperimentManager:
         """
         if os.path.exists("worker_id.dat"):
             os.remove("worker_id.dat")
+            os.remove("worker_id.dat.lock")
             print("Existing worker_id.dat has been deleted to create new one.")
 
         hyperparams, saved_hyperparams = self.read_hyperparameters()
@@ -319,6 +320,7 @@ class ExperimentManager:
 
         if os.path.exists("worker_id.dat"):
             os.remove("worker_id.dat")
+            os.remove("worker_id.dat.lock")
             print("Completed worker_id.dat has been deleted.")
 
     def _save_config(self, saved_hyperparams: Dict[str, Any]) -> None:
@@ -1030,4 +1032,5 @@ class ExperimentManager:
 
         if os.path.exists("worker_id.dat"):
             os.remove("worker_id.dat")
+            os.remove("worker_id.dat.lock")
             print("Completed worker_id.dat has been deleted.")
