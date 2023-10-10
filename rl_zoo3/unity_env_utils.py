@@ -33,7 +33,9 @@ def get_unity_path_from_id(env_id: str) -> str:
     """
     if "unity" in env_id:
         if is_mac():
-            return os.path.expanduser("~/Zebrafish/topdown_zoomin_swimmer3_zebrafish_build_macosx.app")
+            # return os.path.expanduser("~/Zebrafish/topdown_zoomin_swimmer3_zebrafish_build_macosx.app")
+            # TODO: need better naming convention for mac builds
+            return os.path.expanduser("~/MoveForward/topdown_moveforward_swimmer3.app")
         else:
             return os.path.join(UNITY_BUILDS_DIR, f"{env_id}/swimmer3.x86_64")
     else:
@@ -41,7 +43,7 @@ def get_unity_path_from_id(env_id: str) -> str:
 
 
 def get_worker_id(filename="worker_id.dat"):
-    lock_filename = filename + ".lock"
+    lock_filename = filename + ".lock"  # TODO: add uniquely generated ID to lock_filename (uuid)
     with FileLock(lock_filename):
         with open(filename, "a+") as f:
             f.seek(0)
