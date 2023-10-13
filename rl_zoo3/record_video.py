@@ -20,12 +20,8 @@ from rl_zoo3.utils import (
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--env", help="Environment ID", type=EnvironmentName, default="CartPole-v1"
-    )
-    parser.add_argument(
-        "-f", "--folder", help="Log folder", type=str, default="rl-trained-agents"
-    )
+    parser.add_argument("--env", help="Environment ID", type=EnvironmentName, default="CartPole-v1")
+    parser.add_argument("-f", "--folder", help="Log folder", type=str, default="rl-trained-agents")
     parser.add_argument("-o", "--output-folder", help="Output folder", type=str)
     parser.add_argument(
         "--algo",
@@ -35,9 +31,7 @@ if __name__ == "__main__":
         required=False,
         choices=list(ALGOS.keys()),
     )
-    parser.add_argument(
-        "-n", "--n-timesteps", help="Number of timesteps", default=1000, type=int
-    )
+    parser.add_argument("-n", "--n-timesteps", help="Number of timesteps", default=1000, type=int)
     parser.add_argument("--n-envs", help="Number of environments", default=1, type=int)
     parser.add_argument(
         "--deterministic",
@@ -155,9 +149,7 @@ if __name__ == "__main__":
     args_path = os.path.join(log_path, env_name, "args.yml")
     if os.path.isfile(args_path):
         with open(args_path) as f:
-            loaded_args = yaml.load(
-                f, Loader=yaml.UnsafeLoader
-            )  # pytype: disable=module-attr
+            loaded_args = yaml.load(f, Loader=yaml.UnsafeLoader)  # pytype: disable=module-attr
             if loaded_args["env_kwargs"] is not None:
                 env_kwargs = loaded_args["env_kwargs"]
     # overwrite with command line arguments
@@ -205,9 +197,7 @@ if __name__ == "__main__":
 
     print(f"Loading {model_path}")
 
-    model = ALGOS[algo].load(
-        model_path, env=env, custom_objects=custom_objects, **kwargs
-    )
+    model = ALGOS[algo].load(model_path, env=env, custom_objects=custom_objects, **kwargs)
 
     # Deterministic by default except for atari games
     stochastic = args.stochastic or (is_atari or is_minigrid) and not args.deterministic
@@ -244,3 +234,8 @@ if __name__ == "__main__":
         pass
 
     env.close()
+
+    if os.path.exists("worker_id.dat"):
+        os.remove("worker_id.dat")
+        os.remove("worker_id.dat.lock")
+        print("Completed worker_id.dat has been deleted.")

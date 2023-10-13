@@ -36,6 +36,8 @@ def get_unity_path_from_id(env_id: str) -> str:
             # return os.path.expanduser("~/Zebrafish/topdown_zoomin_swimmer3_zebrafish_build_macosx.app")
             # TODO: need better naming convention for mac builds
             return os.path.expanduser("~/MoveForward/topdown_moveforward_swimmer3.app")
+            # return os.path.expanduser("~/eyes_test.app")
+            # return os.path.expanduser("~/topdown_test.app")
         else:
             return os.path.join(UNITY_BUILDS_DIR, f"{env_id}/swimmer3.x86_64")
     else:
