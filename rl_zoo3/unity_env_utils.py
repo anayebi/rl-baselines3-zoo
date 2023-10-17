@@ -34,7 +34,7 @@ def get_unity_path_from_id(env_id: str) -> str:
             ext = ".app"
         else:
             ext = ".x86_64"
-        return os.path.join(UNITY_BUILDS_DIR, f"{env_id}/swimmer3{ext}")
+        return os.path.join(UNITY_BUILDS_DIR, f"{env_id}/build{ext}")
     else:
         raise ValueError(f"Unknown environment ID: {env_id}")
 
