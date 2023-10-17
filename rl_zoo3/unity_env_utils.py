@@ -2,7 +2,7 @@ import os
 from typing import Any, Callable, Dict, List, Optional, Tuple, Type, Union
 
 import itertools
-
+import uuid
 import numpy as np
 
 import gymnasium as gym
@@ -19,11 +19,9 @@ from mlagents_envs import logging_util
 
 from rl_zoo3.utils import is_mac
 
-from filelock import FileLock
-
 
 def get_unity_path_from_id(env_id: str) -> str:
-    # todo: remove the dependence on zfa in the future
+    # TODO: remove the dependence on zfa in the future
     from zfa.core.default_dirs import UNITY_BUILDS_DIR
 
     """
@@ -33,27 +31,28 @@ def get_unity_path_from_id(env_id: str) -> str:
     """
     if "unity" in env_id:
         if is_mac():
-            # return os.path.expanduser("~/Zebrafish/topdown_zoomin_swimmer3_zebrafish_build_macosx.app")
-            # TODO: need better naming convention for mac builds
-            return os.path.expanduser("~/MoveForward/topdown_moveforward_swimmer3.app")
-            # return os.path.expanduser("~/eyes_test.app")
-            # return os.path.expanduser("~/topdown_test.app")
+            ext = ".app"
         else:
-            return os.path.join(UNITY_BUILDS_DIR, f"{env_id}/swimmer3.x86_64")
+            ext = ".x86_64"
+        return os.path.join(UNITY_BUILDS_DIR, f"{env_id}/swimmer3{ext}")
     else:
         raise ValueError(f"Unknown environment ID: {env_id}")
 
 
-def get_worker_id(filename="worker_id.dat"):
-    lock_filename = filename + ".lock"  # TODO: add uniquely generated ID to lock_filename (uuid)
-    with FileLock(lock_filename):
-        with open(filename, "a+") as f:
-            f.seek(0)
-            val = int(f.read() or 0) + 1
-            f.seek(0)
-            f.truncate()
-            f.write(str(val))
-            return val
+def get_worker_id(base_port, seed=None):
+    # If seed is provided, then we want used_seed + base_port + rank < 65536, where used_seed = seed + rank
+    # therefore, seed + base_port + 2*rank < 65536
+    # Otherwise, if seed is None, then we want rank + base_port < 65536.
+    if seed is None:
+        max_value = 65536 - base_port
+    else:
+        max_value = (65536 - base_port - seed) // 2
+
+    if max_value <= 0:
+        raise ValueError("The sum of base_port and seed is too large or too close to 65536.")
+
+    rank = uuid.uuid4().int % max_value
+    return rank
 
 
 def make_unity_vec_env(
@@ -111,7 +110,10 @@ def make_unity_vec_env(
             # ignoring rank argument, and use worker_id instead to ensure more unique seeds
             # as before setting the seed manually during multi-threaded hyperparameter search
             # wasn't enough to avoid uniqueness conflicts with the start_index seeding strategy
-            rank = get_worker_id()
+            base_port = (
+                0 if base_port is None else base_port
+            )  # not using 5005 default value due to port conflicts and 65536 limit
+            rank = get_worker_id(base_port=base_port, seed=seed)
             used_seed = seed + rank if seed is not None else None
             env = UnityEnvironment(
                 file_name=get_unity_path_from_id(env_id),

@@ -234,8 +234,3 @@ if __name__ == "__main__":
         pass
 
     env.close()
-
-    if os.path.exists("worker_id.dat"):
-        os.remove("worker_id.dat")
-        os.remove("worker_id.dat.lock")
-        print("Completed worker_id.dat has been deleted.")

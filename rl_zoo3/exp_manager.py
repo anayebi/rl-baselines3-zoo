@@ -217,10 +217,6 @@ class ExperimentManager:
 
         :return: the initialized RL model
         """
-        if os.path.exists("worker_id.dat"):
-            os.remove("worker_id.dat")
-            os.remove("worker_id.dat.lock")
-            print("Existing worker_id.dat has been deleted to create new one.")
 
         hyperparams, saved_hyperparams = self.read_hyperparameters()
         (
@@ -317,11 +313,6 @@ class ExperimentManager:
         if self.normalize:
             # Important: save the running average, for testing the agent we need that normalization
             model.get_vec_normalize_env().save(os.path.join(self.params_path, "vecnormalize.pkl"))
-
-        if os.path.exists("worker_id.dat"):
-            os.remove("worker_id.dat")
-            os.remove("worker_id.dat.lock")
-            print("Completed worker_id.dat has been deleted.")
 
     def _save_config(self, saved_hyperparams: Dict[str, Any]) -> None:
         """
@@ -1029,8 +1020,3 @@ class ExperimentManager:
             fig2.show()
         except (ValueError, ImportError, RuntimeError):
             pass
-
-        if os.path.exists("worker_id.dat"):
-            os.remove("worker_id.dat")
-            os.remove("worker_id.dat.lock")
-            print("Completed worker_id.dat has been deleted.")
