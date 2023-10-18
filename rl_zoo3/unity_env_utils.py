@@ -31,10 +31,12 @@ def get_unity_path_from_id(env_id: str) -> str:
     """
     if "unity" in env_id:
         if is_mac():
+            platform = "mac"
             ext = ".app"
         else:
+            platform = "linux"
             ext = ".x86_64"
-        return os.path.join(UNITY_BUILDS_DIR, f"{env_id}/build{ext}")
+        return os.path.join(UNITY_BUILDS_DIR, f"{env_id}/{platform}/build{ext}")
     else:
         raise ValueError(f"Unknown environment ID: {env_id}")
 
