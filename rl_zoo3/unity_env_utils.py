@@ -112,16 +112,16 @@ def make_unity_vec_env(
             # ignoring rank argument, and use worker_id instead to ensure more unique seeds
             # as before setting the seed manually during multi-threaded hyperparameter search
             # wasn't enough to avoid uniqueness conflicts with the start_index seeding strategy
-            base_port = (
+            local_base_port = (
                 0 if base_port is None else base_port
             )  # not using 5005 default value due to port conflicts and 65536 limit
-            rank = get_worker_id(base_port=base_port, seed=seed)
+            rank = get_worker_id(base_port=local_base_port, seed=seed)
             used_seed = seed + rank if seed is not None else None
             env = UnityEnvironment(
                 file_name=get_unity_path_from_id(env_id),
                 worker_id=rank,
                 seed=used_seed,
-                base_port=base_port,
+                base_port=local_base_port,
             )
             if ignore_pixels:
                 env = UnityToGymWrapperIgnorePixels(env, allow_multiple_obs=True, **env_kwargs)
