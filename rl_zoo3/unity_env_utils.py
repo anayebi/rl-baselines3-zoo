@@ -13,7 +13,7 @@ from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv, VecEnv
 
 
 from mlagents_envs.environment import UnityEnvironment
-from mlagents_envs.exception import UnityEnvironmentException, UnityWorkerInUseException
+from mlagents_envs.exception import UnityEnvironmentException, UnityWorkerInUseException, UnityTimeOutException
 from mlagents_envs.base_env import ActionTuple, BaseEnv, DecisionSteps, TerminalSteps
 from mlagents_envs import logging_util
 
@@ -146,8 +146,11 @@ def make_unity_vec_env(
                     if wrapper_class is not None:
                         env = wrapper_class(env, **wrapper_kwargs)
                     return env
-                except UnityWorkerInUseException as e:
-                    if "Couldn't start socket communication because worker number" in str(e) and "is still in use." in str(e):
+                except (UnityWorkerInUseException, UnityTimeOutException) as e:
+                    # Check specific exception messages if needed
+                    if (
+                        "Couldn't start socket communication because worker number" in str(e) and "is still in use." in str(e)
+                    ) or isinstance(e, UnityTimeOutException):
                         attempt += 1
                         continue
                     raise e
