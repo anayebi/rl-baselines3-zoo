@@ -147,7 +147,7 @@ def make_unity_vec_env(
                         env = wrapper_class(env, **wrapper_kwargs)
                     return env
                 except UnityEnvironmentException as e:
-                    if "Couldn't start socket communication because worker number" in str(e) and "is still in use." in str(e):
+                    if "communication port" in str(e) and "is still in use." in str(e):
                         attempt += 1
                         continue
                     raise e
