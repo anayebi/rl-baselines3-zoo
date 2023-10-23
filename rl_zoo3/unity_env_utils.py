@@ -72,6 +72,7 @@ def make_unity_vec_env(
     monitor_kwargs: Optional[Dict[str, Any]] = None,
     wrapper_kwargs: Optional[Dict[str, Any]] = None,
     uint8_visual: bool = False,
+    max_attempts: int = 1000,
 ) -> VecEnv:
     """
     Create a wrapped, monitored ``VecEnv``.
@@ -109,38 +110,49 @@ def make_unity_vec_env(
 
     def make_env(rank):
         def _init():
-            # ignoring rank argument, and use worker_id instead to ensure more unique seeds
-            # as before setting the seed manually during multi-threaded hyperparameter search
-            # wasn't enough to avoid uniqueness conflicts with the start_index seeding strategy
-            local_base_port = (
-                0 if base_port is None else base_port
-            )  # not using 5005 default value due to port conflicts and 65536 limit
-            rank = get_worker_id(base_port=local_base_port, seed=seed)
-            used_seed = seed + rank if seed is not None else None
-            env = UnityEnvironment(
-                file_name=get_unity_path_from_id(env_id),
-                worker_id=rank,
-                seed=used_seed,
-                base_port=local_base_port,
-            )
-            if ignore_pixels:
-                env = UnityToGymWrapperIgnorePixels(env, allow_multiple_obs=True, **env_kwargs)
-            else:
-                env = UnityToGymWrapper(env, allow_multiple_obs=True, **env_kwargs)
-            if seed is not None:
-                env.seed(used_seed)
-                env.action_space.seed(used_seed)
-            # Wrap the env in a Monitor wrapper
-            # to have additional training information
-            monitor_path = os.path.join(monitor_dir, str(rank)) if monitor_dir is not None else None
-            # Create the monitor folder if needed
-            if monitor_path is not None:
-                os.makedirs(monitor_dir, exist_ok=True)
-            env = Monitor(env, filename=monitor_path, **monitor_kwargs)
-            # Optionally, wrap the environment with the provided wrapper
-            if wrapper_class is not None:
-                env = wrapper_class(env, **wrapper_kwargs)
-            return env
+            attempt = 0
+
+            while attempt < max_attempts:
+                # ignoring rank argument, and use worker_id instead to ensure more unique seeds
+                # as before setting the seed manually during multi-threaded hyperparameter search
+                # wasn't enough to avoid uniqueness conflicts with the start_index seeding strategy
+                local_base_port = (
+                    0 if base_port is None else base_port
+                )  # not using 5005 default value due to port conflicts and 65536 limit
+                rank = get_worker_id(base_port=local_base_port, seed=seed)
+                used_seed = seed + rank if seed is not None else None
+                try:
+                    env = UnityEnvironment(
+                        file_name=get_unity_path_from_id(env_id),
+                        worker_id=rank,
+                        seed=used_seed,
+                        base_port=local_base_port,
+                    )
+                    if ignore_pixels:
+                        env = UnityToGymWrapperIgnorePixels(env, allow_multiple_obs=True, **env_kwargs)
+                    else:
+                        env = UnityToGymWrapper(env, allow_multiple_obs=True, **env_kwargs)
+                    if seed is not None:
+                        env.seed(used_seed)
+                        env.action_space.seed(used_seed)
+                    # Wrap the env in a Monitor wrapper
+                    # to have additional training information
+                    monitor_path = os.path.join(monitor_dir, str(rank)) if monitor_dir is not None else None
+                    # Create the monitor folder if needed
+                    if monitor_path is not None:
+                        os.makedirs(monitor_dir, exist_ok=True)
+                    env = Monitor(env, filename=monitor_path, **monitor_kwargs)
+                    # Optionally, wrap the environment with the provided wrapper
+                    if wrapper_class is not None:
+                        env = wrapper_class(env, **wrapper_kwargs)
+                    return env
+                except UnityEnvironmentException as e:
+                    if "Couldn't start socket communication because worker number" in str(e) and "is still in use." in str(e):
+                        attempt += 1
+                        continue
+                    raise e
+
+            raise ValueError(f"Failed to find a unique worker ID after {max_attempts} attempts.")
 
         return _init
 
